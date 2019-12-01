@@ -10,7 +10,7 @@ class MyApp extends StatelessWidget {
   final formKey = GlobalKey<FormState>();
   @override
   Widget build(BuildContext context) {
-    final appTitle = 'Project Flutter';
+    final appTitle = 'Project Flutter Corentin Bouyer';
 
     return MaterialApp(
       title: appTitle,
@@ -23,60 +23,87 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+Future<Post> fetchPost() async {
+  final baseUrl = "https://api.foursquare.com/v2/venues/search";
+  final clientID = "3U0G3142QBMKWZDZCVUEVBJDTAQLV0233ZQBFPYJSQPPSY5W";
+  final clientSecret="MDFYETL2NW0S3ZRHKQ5RDTVBTLPOYN5CPSX4JZ4DTI5KQTUK";
+  final response = await http.get(
+      baseUrl + "?client_id=" + clientID + "&client_secret=" + clientSecret +
+          "&v=20181231&near=nantes&query=bar");
+
+  if (response.statusCode == 200) {
+    // If the call to the server was successful, parse the JSON.
+    return Post.fromJson(json.decode(response.body));
+  } else {
+    // If that call was not successful, throw an error.
+    throw Exception('Failed to load post');
+  }
+}
 
 class MyCustomFormState extends State<MyCustomForm> {
   final _formKey = GlobalKey<FormState>();
   final ville=TextEditingController();
   final activite=TextEditingController();
-
-
-  Future<String> fetchPost(String ville, String activite) async {
-   
-    final baseUrl = "https://api.foursquare.com/v2/venues/search";
-    final clientID = "3U0G3142QBMKWZDZCVUEVBJDTAQLV0233ZQBFPYJSQPPSY5W";
-    final clientSecret="MDFYETL2NW0S3ZRHKQ5RDTVBTLPOYN5CPSX4JZ4DTI5KQTUK";
-    final response = await http.get(
-        baseUrl + "?client_id=" + clientID + "&client_secret=" + clientSecret +
-            "&v=20181231&near=" + ville + "&query=" +
-            activite);
-
-
-      print(response.body);
-
-
-
-  }
+  Future<Post> post;
 
   @override
+  void initState() {
+    super.initState();
+    post = fetchPost();
+  }
+  @override
   Widget build(BuildContext context) {
-
     return Form(
       key: _formKey,
       child: Column(
+
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           new TextFormField(
               controller: ville,
               decoration: InputDecoration(
                   labelText: 'Entrer la ville souhaité')
-
-
           ),
           new TextFormField(
               controller: activite ,
               decoration: InputDecoration(
                   labelText: 'Entrer l activité souhaité')
+          ),
+          new FutureBuilder<Post>(
+            future: post,
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                return Text(snapshot.data.venues);
+              } else if (snapshot.hasError) {
+                return Text("${snapshot.error}");
+              }
 
+              // By default, show a loading spinner.
+              return CircularProgressIndicator();
+            },
+          ),
+          new Padding(
+            padding: const EdgeInsets.symmetric(vertical : 16.0),
+            child: RaisedButton(
+              onPressed: () {
+                return showDialog(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      // Retrieve the text the that user has entered by using the
+                      // TextEditingController.
+                      content: Text(activite.text),
+
+                    );
+                  },
+                );
+              },
+
+              child: Text('Rechercher'),
+
+            ),
           ),
 
-          new Scaffold(
-            body: new Center(
-              child: new RaisedButton(
-                  child: new Text("Valider"),
-
-              ),
-            ),
-          )
 
         ],
       ),
@@ -94,19 +121,16 @@ class MyCustomForm extends StatefulWidget {
 }
 
 class Post {
-  final int userId;
-  final int id;
-  final String title;
-  final String body;
+  final String meta;
+  final String venues;
 
-  Post({this.userId, this.id, this.title, this.body});
+  Post({ this.meta, this.venues});
 
   factory Post.fromJson(Map<String, dynamic> json) {
     return Post(
-      userId: json['userId'],
-      id: json['id'],
-      title: json['title'],
-      body: json['body'],
+
+      meta: json["meta"],
+      venues: json["response"],
     );
   }
 }
